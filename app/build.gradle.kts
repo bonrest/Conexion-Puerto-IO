@@ -2,6 +2,12 @@ plugins {
     id("com.android.application")
     id("org.jetbrains.kotlin.android")
 }
+android {
+    buildFeatures {
+        compose =true
+    }
+}
+
 
 android {
     namespace = "com.incentiainversiones.recoleconexionio"

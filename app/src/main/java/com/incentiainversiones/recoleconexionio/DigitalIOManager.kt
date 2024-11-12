@@ -13,29 +13,39 @@ import java.util.*
 import android.hardware.digital.DigitalIO
 import android.hardware.digital.DigitalIOInterruptMonitor
 
+data class PinStatus(
+    val timestamp: String,
+    val message: String,
+    val totalPulses: Int
+)
+
 class DigitalIOManager(private val context: Context) {
     private val digitalIO = DigitalIO()
-    private val _ioFlow = MutableSharedFlow<String>()
+    private val _ioFlow = MutableSharedFlow<PinStatus>()
     val ioFlow = _ioFlow.asSharedFlow()
 
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main)
     private val dateFormat = SimpleDateFormat("HH:mm:ss", Locale.getDefault())
     private var isMonitoring = false
+    private var pulseCount = 0
 
     private val digitalIOInterruptMonitor = object : DigitalIOInterruptMonitor {
         override fun onDigitalIO1() {
             if (isMonitoring) {
                 val value = readInput(1)
-                sendMessage("Pin 1 activado - Valor leído: $value")
+                if (value == 1) { // Solo contamos cuando detectamos un pulso alto
+                    pulseCount++
+                    sendMessage("Pulso detectado en Pin 1")
+                }
             }
         }
 
         override fun onDigitalIO2() {
-            sendMessage("Entrada Digital 2 activada")
+            // No lo usamos en este caso
         }
 
         override fun onDigitalIO3() {
-            sendMessage("Entrada Digital 3 activada")
+            // No lo usamos en este caso
         }
     }
 
@@ -50,7 +60,6 @@ class DigitalIOManager(private val context: Context) {
 
     private fun setupDigitalIO() {
         try {
-            // Registrar el monitor para recibir las interrupciones
             digitalIO.registerDigitalIOInterruptMonitor(digitalIOInterruptMonitor)
             sendMessage("IO Digital inicializado")
         } catch (e: Exception) {
@@ -62,13 +71,9 @@ class DigitalIOManager(private val context: Context) {
     fun startMonitoringPin1() {
         try {
             if (!isMonitoring) {
-                // Configurar el pin 1 para detectar flanco ascendente
                 digitalIO.digital_in_request_irq(1, DigitalIO.IRQF_TRIGGER_RISING)
                 isMonitoring = true
-
-                // Lectura inicial
-                val initialValue = readInput(1)
-                sendMessage("Monitoreo del Pin 1 iniciado - Valor inicial: $initialValue")
+                sendMessage("Monitoreo del Pin 1 iniciado")
             } else {
                 sendMessage("El Pin 1 ya está siendo monitoreado")
             }
@@ -82,8 +87,6 @@ class DigitalIOManager(private val context: Context) {
         try {
             if (isMonitoring) {
                 isMonitoring = false
-                // Ya que no hay un método específico para detener el monitoreo de un pin individual,
-                // solo desactivamos nuestro flag de monitoreo
                 sendMessage("Monitoreo del Pin 1 detenido")
             } else {
                 sendMessage("El Pin 1 no estaba siendo monitoreado")
@@ -108,10 +111,19 @@ class DigitalIOManager(private val context: Context) {
         }
     }
 
+    fun resetPulseCount() {
+        pulseCount = 0
+        sendMessage("Contador de pulsos reiniciado")
+    }
+
     private fun sendMessage(message: String) {
         val timestamp = dateFormat.format(Date())
         scope.launch {
-            _ioFlow.emit("[$timestamp] $message")
+            _ioFlow.emit(PinStatus(
+                timestamp = timestamp,
+                message = message,
+                totalPulses = pulseCount
+            ))
         }
     }
 

@@ -35,12 +35,16 @@ class MainActivity : ComponentActivity() {
     @Composable
     fun IOControlApp() {
         MaterialTheme {
+            var totalPulses by remember { mutableStateOf(0) }
             var logText by remember { mutableStateOf("") }
             val scrollState = rememberScrollState()
 
             LaunchedEffect(Unit) {
-                digitalIOManager.ioFlow.collect { evento ->
-                    logText += "$evento\n"
+                digitalIOManager.ioFlow.collect { status ->
+                    totalPulses = status.totalPulses
+                    logText = "Total de impulsos: ${status.totalPulses}\n" +
+                            "Último evento [${status.timestamp}]: ${status.message}\n\n" +
+                            logText
                 }
             }
 
@@ -56,41 +60,67 @@ class MainActivity : ComponentActivity() {
                     verticalArrangement = Arrangement.spacedBy(16.dp)
                 ) {
                     Text(
-                        text = "Control de Pin Digital 1",
+                        text = "Contador de Impulsos Pin 1",
                         style = MaterialTheme.typography.headlineSmall,
                         textAlign = TextAlign.Center,
                         modifier = Modifier.fillMaxWidth()
                     )
 
-                    // Controles del Pin 1
+                    // Display del contador
+                    Card(
+                        modifier = Modifier.fillMaxWidth(),
+                        colors = CardDefaults.cardColors(
+                            containerColor = MaterialTheme.colorScheme.primaryContainer
+                        )
+                    ) {
+                        Column(
+                            modifier = Modifier.padding(16.dp),
+                            horizontalAlignment = Alignment.CenterHorizontally
+                        ) {
+                            Text(
+                                text = "Total de Impulsos",
+                                style = MaterialTheme.typography.titleMedium
+                            )
+                            Text(
+                                text = "$totalPulses",
+                                style = MaterialTheme.typography.displayLarge
+                            )
+                        }
+                    }
+
+                    // Controles
                     Row(
                         modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceEvenlyill 
+                        horizontalArrangement = Arrangement.SpaceEvenly
                     ) {
                         Button(
                             onClick = { digitalIOManager.startMonitoringPin1() },
                             modifier = Modifier.weight(1f).padding(end = 8.dp)
                         ) {
-                            Text("Iniciar Monitoreo")
+                            Text("Iniciar")
                         }
 
                         Button(
                             onClick = { digitalIOManager.stopMonitoringPin1() },
+                            modifier = Modifier.weight(1f).padding(horizontal = 4.dp)
+                        ) {
+                            Text("Detener")
+                        }
+
+                        Button(
+                            onClick = { digitalIOManager.resetPulseCount() },
                             modifier = Modifier.weight(1f).padding(start = 8.dp)
                         ) {
-                            Text("Detener Monitoreo")
+                            Text("Reiniciar")
                         }
                     }
 
-                    // Botón de lectura manual
-                    Button(
-                        onClick = { digitalIOManager.readInput(1) },
-                        modifier = Modifier.fillMaxWidth()
-                    ) {
-                        Text("Leer Pin 1")
-                    }
+                    // Registro de eventos
+                    Text(
+                        text = "Registro de Eventos",
+                        style = MaterialTheme.typography.titleMedium
+                    )
 
-                    // Log de eventos
                     OutlinedTextField(
                         value = logText,
                         onValueChange = { },
@@ -98,13 +128,11 @@ class MainActivity : ComponentActivity() {
                         modifier = Modifier
                             .weight(1f)
                             .fillMaxWidth()
-                            .verticalScroll(scrollState),
-                        label = { Text("Registro de Eventos") }
+                            .verticalScroll(scrollState)
                     )
 
-                    // Botón para limpiar el log
                     Button(
-                        onClick = { logText = "" },
+                        onClick = { logText = "Total de impulsos: $totalPulses\n" },
                         modifier = Modifier.fillMaxWidth()
                     ) {
                         Text("Limpiar Registro")
